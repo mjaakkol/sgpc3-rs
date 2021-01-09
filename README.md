@@ -1,4 +1,4 @@
-# Sensirion Sgpc3 driver
+# Sensirion SGPC3 driver
 Embedded hal based Rust Sensirion Sgpc3 driver
 
 ![No Std][no-std-badge]
