@@ -37,13 +37,14 @@
 //! ```no_run
 //! use linux_embedded_hal as hal;
 //! use hal::{Delay, I2cdev};
-//! use hal::{Delay, I2cdev};
 //! use sgpc3::Sgpc3;
 //!
-//! let dev = I2cdev::new("/dev/i2c-1").unwrap();
-//! let mut sgp = Sgpc3::new(dev, 0x58, Delay);
-//! let feature_set = sensor.get_feature_set().unwrap();
-//! println!("Feature set {:?}", feature_set);
+//! fn main() {
+//!     let dev = I2cdev::new("/dev/i2c-1").unwrap();
+//!     let mut sensor = Sgpc3::new(dev, 0x58, Delay);
+//!     let feature_set = sensor.get_feature_set().unwrap();
+//!     println!("Feature set {:?}", feature_set);
+//! }
 //! ```
 //!
 //! ### Doing Measurements
@@ -54,14 +55,20 @@
 //! use linux_embedded_hal as hal;
 //! use hal::{Delay, I2cdev};
 //! use sgpc3::Sgpc3;
+//! use std::thread;
+//! use std::time::Duration;
 //!
-//! let dev = I2cdev::new("/dev/i2c-1").unwrap();
-//! let mut sgp = Sgpc3::new(dev, 0x58, Delay);
-//! sensor.init_preheat().unwrap();
-//! thread::sleep(Duration::new(16_u64, 0));
-//! loop {
-//!     let tvoc = sensor.measure_tvoc().unwrap();
-//!     println!("TVOC {}", tvoc);
+//! fn main() {
+//!     let dev = I2cdev::new("/dev/i2c-1").unwrap();
+//!     let mut sensor = Sgpc3::new(dev, 0x58, Delay);
+//!     sensor.init_preheat().unwrap();
+//!
+//!     thread::sleep(Duration::new(16_u64, 0));
+//!
+//!     loop {
+//!         let tvoc = sensor.measure_tvoc().unwrap();
+//!         println!("TVOC {}", tvoc);
+//!     }
 //! }
 //! ```
 //!
@@ -72,14 +79,14 @@
 //! from the beginning.
 //!
 //! The recommended initialization flow is:
-//! ```no_run
+//! ```no_run,ignore
 //! let dev = I2cdev::new("/dev/i2c-1");
-//! let mut sgp = Sgpc3::new(dev, 0x58, Delay);
-//! sgp.init_preheat();
-//! sgp.set_baseline(baseline);
+//! let mut sensor = Sgpc3::new(dev, 0x58, Delay);
+//! sensor.init_preheat();
+//! sensor.set_baseline(baseline);
 //!
 //! thread::sleep(Duration::new(sleep_time, 0));
-//! sgp.measure_tvoc();
+//! sensor.measure_tvoc();
 //! ```
 //!
 //! The table provides pre-heating times per sensor down-time
@@ -537,16 +544,30 @@ mod tests {
         ];
         let mock = I2cMock::new(&expectations);
         let mut sensor = Sgpc3::new(mock, 0x58, DelayMock);
+<<<<<<< HEAD
         if let Err(test_result) = sensor.self_test() {
             assert_eq!(test_result, Error::Crc);
         } else {
             panic!("CRC test succeeded even when it was suppose to fail");
+||||||| 0abb869
+        if let Err(test_result) = sensor.self_test() {
+            assert_eq!(test_result, Error::Crc);
+        }
+        else {
+            panic!("CRC test succeeded even when it was suppose to fail");
+=======
+
+        match sensor.self_test() {
+            Err(Error::Crc) => {},
+            Err(_) => panic!("Unexpected error in CRC test"),
+            Ok(_) => panic!("Unexpected success in CRC test")
+>>>>>>> 055fa3d10ddb16450bef820c5f282964284ee460
         }
     }
 
     #[test]
     fn measure_tvoc_and_raw() {
-        let (cmd, _) = Command::MeasureAirQuality.as_tuple();
+        let (cmd, _) = Command::MeasureAirQualityRaw.as_tuple();
         let expectations = [
             Transaction::write(0x58, cmd.to_be_bytes().to_vec()),
             Transaction::read(0x58, vec![0x12, 0x34, 0x37, 0xbe, 0xef, 0x92]),
@@ -554,7 +575,7 @@ mod tests {
         let mock = I2cMock::new(&expectations);
         let mut sensor = Sgpc3::new(mock, 0x58, DelayMock);
         let (tvoc, raw) = sensor.measure_tvoc_and_raw().unwrap();
-        assert_eq!(tvoc, 0x1234);
-        assert_eq!(raw, 0xbeef);
+        assert_eq!(tvoc, 0xbeef);
+        assert_eq!(raw, 0x1234);
     }
 }
