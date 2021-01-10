@@ -40,12 +40,10 @@
 //! use hal::{Delay, I2cdev};
 //! use sgpc3::Sgpc3;
 //!
-//! fn main() {
-//!     let dev = I2cdev::new("/dev/i2c-1").unwrap();
-//!     let mut sgp = Sgpc3::new(dev, 0x58, Delay);
-//!     let feature_set = sensor.get_feature_set().unwrap();
-//!     println!("Feature set {:?}", feature_set);
-//! }
+//! let dev = I2cdev::new("/dev/i2c-1").unwrap();
+//! let mut sgp = Sgpc3::new(dev, 0x58, Delay);
+//! let feature_set = sensor.get_feature_set().unwrap();
+//! println!("Feature set {:?}", feature_set);
 //! ```
 //!
 //! ### Doing Measurements
@@ -57,17 +55,13 @@
 //! use hal::{Delay, I2cdev};
 //! use sgpc3::Sgpc3;
 //!
-//! fn main() {
-//!     let dev = I2cdev::new("/dev/i2c-1").unwrap();
-//!     let mut sgp = Sgpc3::new(dev, 0x58, Delay);
-//!     sensor.init_preheat().unwrap();
-//!
-//!     thread::sleep(Duration::new(16_u64, 0));
-//!
-//!     loop {
-//!         let tvoc = sensor.measure_tvoc().unwrap();
-//!         println!("TVOC {}", tvoc);
-//!     }
+//! let dev = I2cdev::new("/dev/i2c-1").unwrap();
+//! let mut sgp = Sgpc3::new(dev, 0x58, Delay);
+//! sensor.init_preheat().unwrap();
+//! thread::sleep(Duration::new(16_u64, 0));
+//! loop {
+//!     let tvoc = sensor.measure_tvoc().unwrap();
+//!     println!("TVOC {}", tvoc);
 //! }
 //! ```
 //!
@@ -122,14 +116,13 @@
 //! SGPC3 is a great sensor and fun to use! I hope your sensor selection and this driver servers you well.
 use embedded_hal as hal;
 
-use hal::blocking::delay::{DelayMs};
+use hal::blocking::delay::DelayMs;
 use hal::blocking::i2c::{Read, Write, WriteRead};
 
 use sensirion_i2c::{crc8, i2c};
 
 const SGPC3_PRODUCT_TYPE: u8 = 1;
 const SGPC3_CMD_MEASURE_TEST_OK: u16 = 0xd400;
-
 
 /// Sgpc3 errors
 #[derive(Debug)]
@@ -141,7 +134,6 @@ pub enum Error<E> {
     ///Self-test measure failure
     SelfTest,
 }
-
 
 impl<E, I2cWrite, I2cRead> From<i2c::Error<I2cWrite, I2cRead>> for Error<E>
 where
@@ -186,7 +178,7 @@ enum Command {
     /// Set the current absolute humidity.
     SetHumidity,
     /// Setting power mode.
-    SetPowerMode
+    SetPowerMode,
 }
 
 impl Command {
@@ -206,7 +198,7 @@ impl Command {
             Command::MeasureAirQualityRaw => (0x2046, 50),
             Command::SetBaseline => (0x201e, 10),
             Command::SetHumidity => (0x2061, 10),
-            Command::SetPowerMode => (0x209f, 10)
+            Command::SetPowerMode => (0x209f, 10),
         }
     }
 }
@@ -214,14 +206,14 @@ impl Command {
 #[derive(Debug)]
 pub struct FeatureSet {
     product_type: u8,
-    product_version: u8
+    product_version: u8,
 }
 
 #[derive(Debug, Default)]
-pub struct Sgpc3<I2C,D> {
+pub struct Sgpc3<I2C, D> {
     i2c: I2C,
     address: u8,
-    delay: D
+    delay: D,
 }
 
 impl<I2C, D, E> Sgpc3<I2C, D>
@@ -245,9 +237,12 @@ where
 
         self.delayed_read_cmd(Command::GetSerial, &mut serial)?;
 
-        let serial = u64::from(serial[0])<<40| u64::from(serial[1])<<32|
-                     u64::from(serial[3])<<24| u64::from(serial[4])<<16|
-                     u64::from(serial[6])<<8| u64::from(serial[7]);
+        let serial = u64::from(serial[0]) << 40
+            | u64::from(serial[1]) << 32
+            | u64::from(serial[3]) << 24
+            | u64::from(serial[4]) << 16
+            | u64::from(serial[6]) << 8
+            | u64::from(serial[7]);
         Ok(serial)
     }
 
@@ -268,10 +263,9 @@ where
         assert!(product_type == SGPC3_PRODUCT_TYPE);
 
         Ok(FeatureSet {
-                product_type,
-                product_version: data[1]
-            }
-        )
+            product_type,
+            product_version: data[1],
+        })
     }
 
     /// Sets sensor into ultra-low power mode.
@@ -283,7 +277,7 @@ where
     /// one-way street and once entered, one can get only get out of it through resetting the sensor.
     #[inline]
     pub fn set_ultra_power_mode(&mut self) -> Result<(), Error<E>> {
-        let power_mode: [u8;2] = [0;2];
+        let power_mode: [u8; 2] = [0; 2];
 
         self.write_command_with_args(Command::SetPowerMode, &power_mode)
     }
@@ -293,15 +287,14 @@ where
     /// Performs sensor self-test. This is intended for production line and testing and verification only and
     /// shouldn't be needed for normal use. It should not be used after having issues any init commands.
     pub fn self_test(&mut self) -> Result<&mut Self, Error<E>> {
-        let mut data = [0;3];
+        let mut data = [0; 3];
         self.delayed_read_cmd(Command::SelfTest, &mut data)?;
 
-        let result = u16::from_be_bytes([data[0],data[1]]);
+        let result = u16::from_be_bytes([data[0], data[1]]);
 
         if result != SGPC3_CMD_MEASURE_TEST_OK {
             Err(Error::SelfTest)
-        }
-        else {
+        } else {
             Ok(self)
         }
     }
@@ -322,7 +315,7 @@ where
         let size = data.len();
 
         // 2 for command, size of transferred bytes and CRC per each two bytes.
-        assert!(size < 2+size+size/2);
+        assert!(size < 2 + size + size / 2);
         let (command, delay) = cmd.as_tuple();
 
         transfer_buffer[0..2].copy_from_slice(&command.to_be_bytes());
@@ -335,12 +328,13 @@ where
             transfer_buffer[5..7].copy_from_slice(slice);
             transfer_buffer[7] = crc8::calculate(slice);
             &transfer_buffer[..]
-        }
-        else {
+        } else {
             &transfer_buffer[0..5]
         };
 
-        self.i2c.write(self.address, transfer_buffer).map_err(Error::I2c)?;
+        self.i2c
+            .write(self.address, transfer_buffer)
+            .map_err(Error::I2c)?;
         self.delay.delay_ms(delay);
 
         Ok(())
@@ -405,7 +399,8 @@ where
 
         // 61.12 is typically 6.12 but as we need to use % (div by 100) and later scale by multiplying by 1000,
         // we just moved the dot one to left.
-        let abs_hum  = 216.7_f32 * (rh*61.12_f32*((17.62_f32*t / (243.12_f32+t)).exp()) / (273.15_f32+t));
+        let abs_hum = 216.7_f32
+            * (rh * 61.12_f32 * ((17.62_f32 * t / (243.12_f32 + t)).exp()) / (273.15_f32 + t));
         self.set_absolute_humidity(abs_hum as u32)
     }
 
@@ -414,21 +409,21 @@ where
     /// The measurement should be performed at the configured sampling internal for the best accuracy.
     /// The values are returned as tuple (TVOC, RAW)
     pub fn measure_tvoc_and_raw(&mut self) -> Result<(u16, u16), Error<E>> {
-        let mut buffer = [0;6];
-        self.delayed_read_cmd(Command::MeasureAirQualityRaw,&mut buffer)?;
+        let mut buffer = [0; 6];
+        self.delayed_read_cmd(Command::MeasureAirQualityRaw, &mut buffer)?;
 
-        let raw_signal = u16::from_be_bytes([buffer[0],buffer[1]]);
-        let tvoc_ppb = u16::from_be_bytes([buffer[3],buffer[4]]);
+        let raw_signal = u16::from_be_bytes([buffer[0], buffer[1]]);
+        let tvoc_ppb = u16::from_be_bytes([buffer[3], buffer[4]]);
         Ok((tvoc_ppb, raw_signal))
     }
 
     /// Measures TVOC
     ///
     /// The measurement should be performed at the configured sampling internal for the best accuracy.
-    pub fn measure_tvoc(&mut self) -> Result<u16,Error<E>> {
-        let mut buffer = [0;3];
-        self.delayed_read_cmd(Command::MeasureAirQuality,&mut buffer)?;
-        let tvoc_ppb = u16::from_be_bytes([buffer[0],buffer[1]]);
+    pub fn measure_tvoc(&mut self) -> Result<u16, Error<E>> {
+        let mut buffer = [0; 3];
+        self.delayed_read_cmd(Command::MeasureAirQuality, &mut buffer)?;
+        let tvoc_ppb = u16::from_be_bytes([buffer[0], buffer[1]]);
         Ok(tvoc_ppb)
     }
 
@@ -436,10 +431,10 @@ where
     ///
     /// The measurement should be performed at the configured sampling internal for the best accuracy.
     /// Typically, the caller shouldn't need RAW value but should use TVOC instead.
-    pub fn measure_raw(&mut self) -> Result<u16,Error<E>> {
-        let mut buffer = [0;3];
-        self.delayed_read_cmd(Command::MeasureRaw,&mut buffer)?;
-        let raw = u16::from_be_bytes([buffer[0],buffer[1]]);
+    pub fn measure_raw(&mut self) -> Result<u16, Error<E>> {
+        let mut buffer = [0; 3];
+        self.delayed_read_cmd(Command::MeasureRaw, &mut buffer)?;
+        let raw = u16::from_be_bytes([buffer[0], buffer[1]]);
         Ok(raw)
     }
 
@@ -449,10 +444,10 @@ where
     /// Sensor must be supporting feature set 6 for the support.
     /// Check sensor application note for the usage as you need ensure that
     /// sensor has been operating long-enough for valid baseline.
-    pub fn get_baseline(&mut self) -> Result<u16,Error<E>> {
-        let mut buffer = [0;3];
-        self.delayed_read_cmd(Command::GetAirQualityBaseline,&mut buffer)?;
-        let baseline = u16::from_be_bytes([buffer[0],buffer[1]]);
+    pub fn get_baseline(&mut self) -> Result<u16, Error<E>> {
+        let mut buffer = [0; 3];
+        self.delayed_read_cmd(Command::GetAirQualityBaseline, &mut buffer)?;
+        let baseline = u16::from_be_bytes([buffer[0], buffer[1]]);
         Ok(baseline)
     }
 
@@ -464,24 +459,22 @@ where
     ///
     /// Check sensor application note for the usage as you need ensure that
     /// sensor has been operating long-enough for valid baseline.
-    pub fn get_inceptive_baseline(&mut self) -> Result<u16,Error<E>> {
-        let mut buffer = [0;3];
-        self.delayed_read_cmd(Command::GetAirQualityInceptiveBaseline,&mut buffer)?;
-        let baseline = u16::from_be_bytes([buffer[0],buffer[1]]);
+    pub fn get_inceptive_baseline(&mut self) -> Result<u16, Error<E>> {
+        let mut buffer = [0; 3];
+        self.delayed_read_cmd(Command::GetAirQualityInceptiveBaseline, &mut buffer)?;
+        let baseline = u16::from_be_bytes([buffer[0], buffer[1]]);
         Ok(baseline)
     }
-
 
     /// Sets the baseline for faster accurate.
     ///
     /// Baseline will ensure that you can start regarding the accuracy where you left it
     /// off after powering down or reseting the sensor.
     #[inline]
-    pub fn set_baseline(&mut self, baseline: u16) -> Result<&mut Self,Error<E>> {
-        self.write_command_with_args(Command::SetBaseline,&baseline.to_be_bytes())?;
+    pub fn set_baseline(&mut self, baseline: u16) -> Result<&mut Self, Error<E>> {
+        self.write_command_with_args(Command::SetBaseline, &baseline.to_be_bytes())?;
         Ok(self)
     }
-
 }
 
 // Testing is focused on checking the primitive transactions. It is assumed that during
@@ -500,7 +493,10 @@ mod tests {
         let (cmd, _) = Command::GetSerial.as_tuple();
         let expectations = [
             Transaction::write(0x58, cmd.to_be_bytes().to_vec()),
-            Transaction::read(0x58, vec![0xde, 0xad, 0x98, 0xbe, 0xef, 0x92, 0xde, 0xad, 0x98]),
+            Transaction::read(
+                0x58,
+                vec![0xde, 0xad, 0x98, 0xbe, 0xef, 0x92, 0xde, 0xad, 0x98],
+            ),
         ];
         let mock = I2cMock::new(&expectations);
         let mut sensor = Sgpc3::new(mock, 0x58, DelayMock);
@@ -543,8 +539,7 @@ mod tests {
         let mut sensor = Sgpc3::new(mock, 0x58, DelayMock);
         if let Err(test_result) = sensor.self_test() {
             assert_eq!(test_result, Error::Crc);
-        }
-        else {
+        } else {
             panic!("CRC test succeeded even when it was suppose to fail");
         }
     }

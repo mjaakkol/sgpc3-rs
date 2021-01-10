@@ -1,16 +1,15 @@
+use hal::{Delay, I2cdev};
 /// Example that runs on Sensirion SGPC3 evaluation board that has temperature and humidity
 /// sensors in addition to SGPC.
 ///
 /// If you have the full evaluation board, remove the comments to start using the temperature
 /// and humidity sensors.
-
 use linux_embedded_hal as hal;
-use hal::{Delay, I2cdev};
 
 //use shtcx::PowerMode;
 
-use std::time::Duration;
 use std::thread;
+use std::time::Duration;
 
 use sgpc3::Sgpc3;
 
@@ -44,7 +43,7 @@ fn main() {
 
     thread::sleep(Duration::new(184_u64, 0));
 
-    for _ in 0..9  {
+    for _ in 0..9 {
         sensor.measure_tvoc().unwrap();
         thread::sleep(Duration::new(2_u64, 0));
     }
@@ -76,4 +75,3 @@ fn main() {
         thread::sleep(Duration::new(2_u64, 0));
     }
 }
-
