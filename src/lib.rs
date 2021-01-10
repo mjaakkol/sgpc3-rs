@@ -544,24 +544,11 @@ mod tests {
         ];
         let mock = I2cMock::new(&expectations);
         let mut sensor = Sgpc3::new(mock, 0x58, DelayMock);
-<<<<<<< HEAD
-        if let Err(test_result) = sensor.self_test() {
-            assert_eq!(test_result, Error::Crc);
-        } else {
-            panic!("CRC test succeeded even when it was suppose to fail");
-||||||| 0abb869
-        if let Err(test_result) = sensor.self_test() {
-            assert_eq!(test_result, Error::Crc);
-        }
-        else {
-            panic!("CRC test succeeded even when it was suppose to fail");
-=======
 
         match sensor.self_test() {
             Err(Error::Crc) => {},
             Err(_) => panic!("Unexpected error in CRC test"),
             Ok(_) => panic!("Unexpected success in CRC test")
->>>>>>> 055fa3d10ddb16450bef820c5f282964284ee460
         }
     }
 
