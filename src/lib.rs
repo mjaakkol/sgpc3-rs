@@ -1,3 +1,125 @@
+//! Platform agnostic Rust driver for Sensirion SGPC3 gas sensor using
+//! the [`embedded-hal`](https://github.com/japaric/embedded-hal) traits.
+//!
+//! ## Sensirion SGPC3
+//!
+//! Sensirion SGPC3 is a low-power accurate gas sensor for air quality application.
+//! The sensor has different sampling rates to optimize power-consumption per application
+//! bases as well as ability save and set the baseline for faster start-up accuracy.
+//! The sensor uses I²C interface and measures TVOC (*Total Volatile Organic Compounds*)
+//!
+//! Datasheet: https://www.sensirion.com/file/datasheet_sgpc3
+//!
+//! ## Usage
+//!
+//! ### Instantiating
+//!
+//! Import this crate and an `embedded_hal` implementation, then instantiate
+//! the device:
+//!
+//! ```no_run
+//! use linux_embedded_hal as hal;
+//!
+//! use hal::{Delay, I2cdev};
+//! use sgpc3::Sgpc3;
+//!
+//! fn main() {
+//!     let dev = I2cdev::new("/dev/i2c-1").unwrap();
+//!     let mut sgp = Sgpc3::new(dev, 0x58, Delay);
+//! }
+//! ```
+//!
+//! ### Fetching Sensor Feature Set
+//!
+//! Sensor feature set is important to determine the device capabilities.
+//! Most new sensors are at level 6 or above. Consult the datasheet for the implications.
+//!
+//! ```no_run
+//! use linux_embedded_hal as hal;
+//! use hal::{Delay, I2cdev};
+//! use hal::{Delay, I2cdev};
+//! use sgpc3::Sgpc3;
+//!
+//! fn main() {
+//!     let dev = I2cdev::new("/dev/i2c-1").unwrap();
+//!     let mut sgp = Sgpc3::new(dev, 0x58, Delay);
+//!     let feature_set = sensor.get_feature_set().unwrap();
+//!     println!("Feature set {:?}", feature_set);
+//! }
+//! ```
+//!
+//! ### Doing Measurements
+//!
+//! Before you do any measurements, you need to initialize the sensor.
+//!
+//! ```no_run
+//! use linux_embedded_hal as hal;
+//! use hal::{Delay, I2cdev};
+//! use sgpc3::Sgpc3;
+//!
+//! fn main() {
+//!     let dev = I2cdev::new("/dev/i2c-1").unwrap();
+//!     let mut sgp = Sgpc3::new(dev, 0x58, Delay);
+//!     sensor.init_preheat().unwrap();
+//!
+//!     thread::sleep(Duration::new(16_u64, 0));
+//!
+//!     loop {
+//!         let tvoc = sensor.measure_tvoc().unwrap();
+//!         println!("TVOC {}", tvoc);
+//!     }
+//! }
+//! ```
+//!
+//! SGPC3 has few things that you need to keep in mind. The first is pre-heating.
+//! The amount of preheating depends on when the sensor was used the last time and
+//! if you have the baseline saved. Baseline is adjusted inside the sensor with each measurement
+//! and you want to save it eg. each hour in the case you need to reset the sensor and start
+//! from the beginning.
+//!
+//! The recommended initialization flow is:
+//! ```no_run
+//! let dev = I2cdev::new("/dev/i2c-1");
+//! let mut sgp = Sgpc3::new(dev, 0x58, Delay);
+//! sgp.init_preheat();
+//! sgp.set_baseline(baseline);
+//!
+//! thread::sleep(Duration::new(sleep_time, 0));
+//! sgp.measure_tvoc();
+//! ```
+//!
+//! The table provides pre-heating times per sensor down-time
+//!
+//! | Sensor down-time                     | Accelerated warm-up time |
+//! |--------------------------------------|--------------------------|
+//! |            1 min – 30 min            |             -            |
+//! |             30 min – 6 h             |           16 s           |
+//! |             6 h – 1 week             |           184 s          |
+//! | more than 1 week / initial switch-on |           184 s          |
+//!
+//! Once the sensor has been taking the sufficient time for pre-heating. You need to call
+//! measurement function eg. 'measure_tvoc'. This will enable the sensor to go to sleep and continue initialization.
+//! The sensor readings won't change for the first 20s so you might as well discard all of them.
+//!
+//! You have two operation modes to choose from. Either the standard mode where you read the value
+//! every 2s or use the ultra-low power mode where you read the sensor every 30s.
+//!
+//! If you want to use ultra-power mode, you want to call that prior calling any init-function.
+//! Your baseline is power-mode dependent so you don't want to switch back and forth between
+//! the power-modes as it always requires re-initialization. Also, the sensor accuracy varies between
+//! the modes making the comparison of the values between modes no apples-to-apples anymore.
+//! In another words, choose your power-mode per your application and stick with it.
+//!
+//! After initialization, you are ready to measure TVOC in loop per the selected measurement interval.
+//! As said earlier, you want to stick with the internal - no shorter or longer than the defined value.
+//!
+//! If no stored baseline is available after initializing the baseline algorithm, the sensor has to run for
+//! 12 hours until the baseline can be stored. This will ensure an optimal behavior for subsequent startups.
+//! Reading out the baseline prior should be avoided unless a valid baseline is restored first. Once the
+//! baseline is properly initialized or restored, the current baseline value should be stored approximately
+//! once per hour. While the sensor is off, baseline values are valid for a maximum of seven days.
+//!
+//! SGPC3 is a great sensor and fun to use! I hope your sensor selection and this driver servers you well.
 use embedded_hal as hal;
 
 use hal::blocking::delay::{DelayMs};
@@ -327,7 +449,7 @@ where
     /// Sensor must be supporting feature set 6 for the support.
     /// Check sensor application note for the usage as you need ensure that
     /// sensor has been operating long-enough for valid baseline.
-    pub fn get_tvoc_baseline(&mut self) -> Result<u16,Error<E>> {
+    pub fn get_baseline(&mut self) -> Result<u16,Error<E>> {
         let mut buffer = [0;3];
         self.delayed_read_cmd(Command::GetAirQualityBaseline,&mut buffer)?;
         let baseline = u16::from_be_bytes([buffer[0],buffer[1]]);
@@ -342,7 +464,7 @@ where
     ///
     /// Check sensor application note for the usage as you need ensure that
     /// sensor has been operating long-enough for valid baseline.
-    pub fn get_tvoc_inceptive_baseline(&mut self) -> Result<u16,Error<E>> {
+    pub fn get_inceptive_baseline(&mut self) -> Result<u16,Error<E>> {
         let mut buffer = [0;3];
         self.delayed_read_cmd(Command::GetAirQualityInceptiveBaseline,&mut buffer)?;
         let baseline = u16::from_be_bytes([buffer[0],buffer[1]]);
@@ -355,7 +477,7 @@ where
     /// Baseline will ensure that you can start regarding the accuracy where you left it
     /// off after powering down or reseting the sensor.
     #[inline]
-    pub fn set_tvoc_baseline(&mut self, baseline: u16) -> Result<&mut Self,Error<E>> {
+    pub fn set_baseline(&mut self, baseline: u16) -> Result<&mut Self,Error<E>> {
         self.write_command_with_args(Command::SetBaseline,&baseline.to_be_bytes())?;
         Ok(self)
     }
