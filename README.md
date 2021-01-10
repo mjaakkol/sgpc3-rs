@@ -40,7 +40,7 @@ be dual licensed as above, without any additional terms or conditions.
 
 <!-- Badges -->
 [workflow]: https://github.com/mjaakkol/sgpc3-rs/actions?query=workflow%3ARust
-[workflow-badge]: https://img.shields.io/github/workflow/status/mjaakkol/sgp30-rs/Rust/master
+[workflow-badge]: https://img.shields.io/github/workflow/status/mjaakkol/sgp30-rs/master
 [crates-io]: https://crates.io/crates/sgpc3
 [crates-io-badge]: https://img.shields.io/crates/v/sgpc3.svg?maxAge=3600
 [crates-io-download]: https://crates.io/crates/sgpc3
