@@ -1,6 +1,7 @@
 # Sensirion SGPC3 driver
 Embedded hal based Rust Sensirion Sgpc3 driver
 
+[![Build status][workflow-badge]][workflow]
 [![Crates.io Version][crates-io-badge]][crates-io]
 [![Crates.io Downloads][crates-io-download-badge]][crates-io-download]
 ![No Std][no-std-badge]
@@ -38,6 +39,8 @@ for inclusion in the work by you, as defined in the Apache-2.0 license, shall
 be dual licensed as above, without any additional terms or conditions.
 
 <!-- Badges -->
+[workflow]: https://github.com/mjaakkol/sgpc3-rs/actions?query=workflow%3ARust
+[workflow-badge]: https://img.shields.io/github/workflow/status/mjaakkol/sgp30-rs/Rust/master
 [crates-io]: https://crates.io/crates/sgpc3
 [crates-io-badge]: https://img.shields.io/crates/v/sgpc3.svg?maxAge=3600
 [crates-io-download]: https://crates.io/crates/sgpc3
