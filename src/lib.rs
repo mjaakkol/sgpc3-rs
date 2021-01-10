@@ -121,6 +121,8 @@
 //! once per hour. While the sensor is off, baseline values are valid for a maximum of seven days.
 //!
 //! SGPC3 is a great sensor and fun to use! I hope your sensor selection and this driver servers you well.
+#![cfg_attr(not(test), no_std)]
+
 use embedded_hal as hal;
 
 use hal::blocking::delay::DelayMs;
