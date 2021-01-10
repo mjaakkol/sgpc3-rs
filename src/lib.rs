@@ -184,12 +184,14 @@ where
         }
     }
 
+    /// Command for reading values from the sensor
     fn delayed_read_cmd(&mut self, cmd: Command, data: &mut [u8]) -> Result<(), Error<E>> {
         self.write_command(cmd)?;
         i2c::read_words_with_crc(&mut self.i2c, self.address, data)?;
         Ok(())
     }
 
+    /// Writes commands with arguments
     fn write_command_with_args(&mut self, cmd: Command, data: &[u8]) -> Result<(), Error<E>> {
         const MAX_TX_BUFFER: usize = 8;
 
@@ -222,6 +224,7 @@ where
         Ok(())
     }
 
+    /// Writes commands without additional arguments.
     fn write_command(&mut self, cmd: Command) -> Result<(), Error<E>> {
         let (command, delay) = cmd.as_tuple();
         i2c::write_command(&mut self.i2c, self.address, command).map_err(Error::I2c)?;
@@ -393,6 +396,35 @@ mod tests {
         let mock = I2cMock::new(&expectations);
         let mut sensor = Sgpc3::new(mock, 0x58, DelayMock);
         assert!(sensor.self_test().is_ok());
+    }
+
+    #[test]
+    fn selftest_failed() {
+        let (cmd, _) = Command::SelfTest.as_tuple();
+        let expectations = [
+            Transaction::write(0x58, cmd.to_be_bytes().to_vec()),
+            Transaction::read(0x58, vec![0xde, 0xad, 0x98]),
+        ];
+        let mock = I2cMock::new(&expectations);
+        let mut sensor = Sgpc3::new(mock, 0x58, DelayMock);
+        assert!(!sensor.self_test().is_ok());
+    }
+
+    #[test]
+    fn test_crc_error() {
+        let (cmd, _) = Command::SelfTest.as_tuple();
+        let expectations = [
+            Transaction::write(0x58, cmd.to_be_bytes().to_vec()),
+            Transaction::read(0x58, vec![0xD4, 0x00, 0x00]),
+        ];
+        let mock = I2cMock::new(&expectations);
+        let mut sensor = Sgpc3::new(mock, 0x58, DelayMock);
+        if let Err(test_result) = sensor.self_test() {
+            assert_eq!(test_result, Error::Crc);
+        }
+        else {
+            panic!("CRC test succeeded even when it was suppose to fail");
+        }
     }
 
     #[test]
