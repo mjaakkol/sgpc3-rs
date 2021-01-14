@@ -214,8 +214,11 @@ impl Command {
 
 #[derive(Debug)]
 pub struct FeatureSet {
-    product_type: u8,
-    product_version: u8,
+	/// Product type for SGPC3 is always 1.
+    pub product_type: u8,
+	/// Product feature set defines the capabilities of the sensor. Consult datasheet
+	/// for the differences as they do impact on how you want to use APIs.
+    pub product_featureset: u8,
 }
 
 #[derive(Debug, Default)]
@@ -273,7 +276,7 @@ where
 
         Ok(FeatureSet {
             product_type,
-            product_version: data[1],
+            product_featureset: data[1],
         })
     }
 
