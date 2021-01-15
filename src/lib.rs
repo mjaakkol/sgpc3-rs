@@ -121,7 +121,7 @@
 //! once per hour. While the sensor is off, baseline values are valid for a maximum of seven days.
 //!
 //! SGPC3 is a great sensor and fun to use! I hope your sensor selection and this driver servers you well.
-//#![cfg_attr(not(test), no_std)]
+#![cfg_attr(not(test), no_std)]
 
 use embedded_hal as hal;
 
@@ -518,7 +518,6 @@ where
         let sleep_time =
             if baseline_age_s == 0 || baseline_age_s > 7*24*60*60 {
                 // More than week old or initial switch-on
-                println!("Started from scratch");
                 184*1000
             }
             else {
@@ -526,17 +525,14 @@ where
 
                 if baseline_age_s > 0 && baseline_age_s <= 30*60 {
                     // Less than 30min from the last save. This is fresh puppy
-                    println!("No wait");
                     0
                 }
                 else if baseline_age_s > 30*60 && baseline_age_s <= 6*60*60 {
-                    println!("Short wait");
                     // Less than six hours since the last baseline save
                     16*1000
                 }
                 else {
                     // Maximum pre-head time but baseline still valid if less than week old
-                    println!("Long wait but still valid baseline");
                     184*1000
                 }
             };
