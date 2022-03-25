@@ -14,6 +14,13 @@ Sensirion SGPC is a low-power accurate gas sensor for air quality application. T
 
 Datasheet: https://www.sensirion.com/file/datasheet_sgpc3
 
+## no_std
+
+For use in 'no_std' environments, use the `no_std` feature. Add this to your `Cargo.toml`
+
+    sgpc3 = {version = "0.0.4", features = ["no_std"]}
+
+
 ## Development status
 The sensor is feature complete and the future development evolves:
 - Moving into using Embedded-hal 1.x

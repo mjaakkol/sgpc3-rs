@@ -114,7 +114,7 @@
 //! SGPC3 is a great sensor and fun to use! I hope your sensor selection and this driver servers you well.
 #![cfg_attr(not(test), no_std)]
 
-#[cfg(no_std)]
+#[cfg(feature = "no_std")]
 use num_traits::real::Real;
 
 use embedded_hal as hal;
