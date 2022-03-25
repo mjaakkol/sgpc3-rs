@@ -8,7 +8,7 @@
 //! bases as well as ability save and set the baseline for faster start-up accuracy.
 //! The sensor uses I²C interface and measures TVOC (*Total Volatile Organic Compounds*)
 //!
-//! Datasheet: https://www.sensirion.com/file/datasheet_sgpc3
+//! Datasheet: <https://www.sensirion.com/file/datasheet_sgpc3>
 //!
 //! ## Usage
 //!
@@ -17,7 +17,7 @@
 //! Import this crate and an `embedded_hal` implementation, then instantiate
 //! the device:
 //!
-//! ```no_run
+//! ```ignore
 //! use linux_embedded_hal as hal;
 //!
 //! use hal::{Delay, I2cdev};
@@ -33,7 +33,7 @@
 //! Sensor feature set is important to determine the device capabilities.
 //! Most new sensors are at level 6 or above. Consult the datasheet for the implications.
 //!
-//! ```no_run
+//! ```ignore
 //! use hal::{Delay, I2cdev};
 //! use sgpc3::Sgpc3;
 //!
@@ -48,7 +48,7 @@
 //!
 //! Before you do any measurements, you need to initialize the sensor.
 //!
-//! ```no_run
+//! ```ignore
 //!
 //! let dev = I2cdev::new("/dev/i2c-1").unwrap();
 //! let mut sensor = Sgpc3::new(dev, 0x58, Delay);
