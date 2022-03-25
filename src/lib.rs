@@ -23,10 +23,9 @@
 //! use hal::{Delay, I2cdev};
 //! use sgpc3::Sgpc3;
 //!
-//! fn main() {
-//!     let dev = I2cdev::new("/dev/i2c-1").unwrap();
-//!     let mut sgp = Sgpc3::new(dev, 0x58, Delay);
-//! }
+//! let dev = I2cdev::new("/dev/i2c-1").unwrap();
+//! let mut sgp = Sgpc3::new(dev, 0x58, Delay);
+//!
 //! ```
 //!
 //! ### Fetching Sensor Feature Set
@@ -35,16 +34,14 @@
 //! Most new sensors are at level 6 or above. Consult the datasheet for the implications.
 //!
 //! ```no_run
-//! use linux_embedded_hal as hal;
 //! use hal::{Delay, I2cdev};
 //! use sgpc3::Sgpc3;
 //!
-//! fn main() {
-//!     let dev = I2cdev::new("/dev/i2c-1").unwrap();
-//!     let mut sensor = Sgpc3::new(dev, 0x58, Delay);
-//!     let feature_set = sensor.get_feature_set().unwrap();
-//!     println!("Feature set {:?}", feature_set);
-//! }
+//!
+//! let dev = I2cdev::new("/dev/i2c-1").unwrap();
+//! let mut sensor = Sgpc3::new(dev, 0x58, Delay);
+//! let feature_set = sensor.get_feature_set().unwrap();
+//! println!("Feature set {:?}", feature_set);
 //! ```
 //!
 //! ### Doing Measurements
@@ -52,24 +49,18 @@
 //! Before you do any measurements, you need to initialize the sensor.
 //!
 //! ```no_run
-//! use linux_embedded_hal as hal;
-//! use hal::{Delay, I2cdev};
-//! use sgpc3::Sgpc3;
-//! use std::thread;
-//! use std::time::Duration;
 //!
-//! fn main() {
-//!     let dev = I2cdev::new("/dev/i2c-1").unwrap();
-//!     let mut sensor = Sgpc3::new(dev, 0x58, Delay);
-//!     sensor.init_preheat().unwrap();
+//! let dev = I2cdev::new("/dev/i2c-1").unwrap();
+//! let mut sensor = Sgpc3::new(dev, 0x58, Delay);
+//! sensor.init_preheat().unwrap();
 //!
-//!     thread::sleep(Duration::new(16_u64, 0));
+//! thread::sleep(Duration::new(16_u64, 0));
 //!
-//!     loop {
-//!         let tvoc = sensor.measure_tvoc().unwrap();
-//!         println!("TVOC {}", tvoc);
-//!     }
+//! loop {
+//!     let tvoc = sensor.measure_tvoc().unwrap();
+//!     println!("TVOC {}", tvoc);
 //! }
+
 //! ```
 //!
 //! SGPC3 has few things that you need to keep in mind. The first is pre-heating.
@@ -123,6 +114,7 @@
 //! SGPC3 is a great sensor and fun to use! I hope your sensor selection and this driver servers you well.
 #![cfg_attr(not(test), no_std)]
 
+#[cfg(no_std)]
 use num_traits::real::Real;
 
 use embedded_hal as hal;
@@ -216,10 +208,10 @@ impl Command {
 
 #[derive(Debug)]
 pub struct FeatureSet {
-	/// Product type for SGPC3 is always 1.
+    /// Product type for SGPC3 is always 1.
     pub product_type: u8,
-	/// Product feature set defines the capabilities of the sensor. Consult datasheet
-	/// for the differences as they do impact on how you want to use APIs.
+    /// Product feature set defines the capabilities of the sensor. Consult datasheet
+    /// for the differences as they do impact on how you want to use APIs.
     pub product_featureset: u8,
 }
 
@@ -510,34 +502,35 @@ where
     ///
     /// Once the method is complete, the user should immediately take a sample and then continue taking them
     /// per the defined power-mode. In ultra power-save, the sampling frequency is 30s and in standard mode 2s.
-    pub fn initialize(&mut self, baseline: u16, baseline_age_s: u32, ultra_power_save: bool) -> Result<&mut Self, Error<E>> {
+    pub fn initialize(
+        &mut self,
+        baseline: u16,
+        baseline_age_s: u32,
+        ultra_power_save: bool,
+    ) -> Result<&mut Self, Error<E>> {
         if ultra_power_save {
             self.set_ultra_power_mode()?;
         }
 
         self.init_preheat()?;
 
-        let sleep_time =
-            if baseline_age_s == 0 || baseline_age_s > 7*24*60*60 {
-                // More than week old or initial switch-on
-                184*1000
-            }
-            else {
-                self.set_baseline(baseline)?;
+        let sleep_time = if baseline_age_s == 0 || baseline_age_s > 7 * 24 * 60 * 60 {
+            // More than week old or initial switch-on
+            184 * 1000
+        } else {
+            self.set_baseline(baseline)?;
 
-                if baseline_age_s > 0 && baseline_age_s <= 30*60 {
-                    // Less than 30min from the last save. This is fresh puppy
-                    0
-                }
-                else if baseline_age_s > 30*60 && baseline_age_s <= 6*60*60 {
-                    // Less than six hours since the last baseline save
-                    16*1000
-                }
-                else {
-                    // Maximum pre-head time but baseline still valid if less than week old
-                    184*1000
-                }
-            };
+            if baseline_age_s > 0 && baseline_age_s <= 30 * 60 {
+                // Less than 30min from the last save. This is fresh puppy
+                0
+            } else if baseline_age_s > 30 * 60 && baseline_age_s <= 6 * 60 * 60 {
+                // Less than six hours since the last baseline save
+                16 * 1000
+            } else {
+                // Maximum pre-head time but baseline still valid if less than week old
+                184 * 1000
+            }
+        };
 
         self.delay.delay_ms(sleep_time);
 
@@ -546,7 +539,7 @@ where
 
         // From the document: "After the accelerated warm-up phase, the initialization takes 20 seconds,
         // during which the IAQ output will not change."
-        self.delay.delay_ms(20*1000);
+        self.delay.delay_ms(20 * 1000);
         Ok(self)
     }
 }
@@ -613,9 +606,9 @@ mod tests {
         let mut sensor = Sgpc3::new(mock, 0x58, DelayMock);
 
         match sensor.self_test() {
-            Err(Error::Crc) => {},
+            Err(Error::Crc) => {}
             Err(_) => panic!("Unexpected error in CRC test"),
-            Ok(_) => panic!("Unexpected success in CRC test")
+            Ok(_) => panic!("Unexpected success in CRC test"),
         }
     }
 
