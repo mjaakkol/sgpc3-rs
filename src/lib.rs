@@ -123,6 +123,8 @@
 //! SGPC3 is a great sensor and fun to use! I hope your sensor selection and this driver servers you well.
 #![cfg_attr(not(test), no_std)]
 
+use num_traits::real::Real;
+
 use embedded_hal as hal;
 
 use hal::blocking::delay::DelayMs;
