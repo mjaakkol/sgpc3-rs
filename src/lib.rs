@@ -114,9 +114,6 @@
 //! SGPC3 is a great sensor and fun to use! I hope your sensor selection and this driver servers you well.
 #![cfg_attr(not(test), no_std)]
 
-#[cfg(no_std)]
-use num_traits::real::Real;
-
 use embedded_hal as hal;
 
 use hal::blocking::delay::DelayMs;
@@ -394,19 +391,39 @@ where
         Ok(self)
     }
 
+    fn calculate_absolute_humidity(rh: i32, t_mc: i32) -> u32 {
+        type FP = fixed::types::I16F16;
+
+        let t = FP::from_num(t_mc) / 1000; //    (t_mc as f32) / 1000_f32;
+        let rh = FP::from_num(rh); // (rh as f32) / 1000_f32;
+
+        // Formulate for absolute humidy:
+        // rho_v = 216.7*(RH/100.0*6.112*exp(17.62*T/(243.12+T))/(273.15+T));
+
+        // Calculate the constants into one number
+        // 216.7 * 6.112 / 100,000 (100*1000)
+        let prefix_constants = FP::from_bits(0x364); // 0.013244704
+
+        let k = FP::from_bits(0x1112666); // 273.15
+        let m = FP::from_bits(0x119eb8); // 17.62
+        let t_n = FP::from_bits(0xf335c2); // 243.21
+
+        let temp_components = cordic::exp(m*t/(t_n + t));
+
+        let abs_hum = prefix_constants * rh * temp_components / (k + t);
+
+        (abs_hum * 1000).to_num::<u32>()
+    }
+
+
     /// Sets the relative humidity for the best accuracy.
     ///
     /// The arguments are supplied as milli-units. Eg. 20% relative humidity is supplied as 20000
     /// and temperature t_mc as Celsius. 10C is 10000.
+    #[inline]
     pub fn set_relative_humidity(&mut self, rh: i32, t_mc: i32) -> Result<&mut Self, Error<E>> {
-        //let
-        let t = (t_mc as f32) / 1000_f32;
-        let rh = (rh as f32) / 1000_f32;
+        let abs_hum = Self::calculate_absolute_humidity(rh, t_mc);
 
-        // 61.12 is typically 6.12 but as we need to use % (div by 100) and later scale by multiplying by 1000,
-        // we just moved the dot one to left.
-        let abs_hum = 216.7_f32
-            * (rh * 61.12_f32 * ((17.62_f32 * t / (243.12_f32 + t)).exp()) / (273.15_f32 + t));
         self.set_absolute_humidity(abs_hum as u32)
     }
 
