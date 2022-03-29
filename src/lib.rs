@@ -391,18 +391,20 @@ where
         Ok(self)
     }
 
-    fn calculate_absolute_humidity(rh: i32, t_mc: i32) -> u32 {
+    fn calculate_absolute_humidity(t_rh: i32, t_mc: i32) -> u32 {
         type FP = fixed::types::I16F16;
 
-        let t = FP::from_num(t_mc) / 1000; //    (t_mc as f32) / 1000_f32;
-        let rh = FP::from_num(rh); // (rh as f32) / 1000_f32;
+        // Rounding the last digit off as the sensors don't reach that level of accurary
+        // anyway
+        let t = FP::from_num(t_mc / 10) / 100; //    (t_mc as f32) / 1000_f32;
+        let rh = FP::from_num(t_rh / 10); // (rh as f32) / 1000_f32;
 
         // Formulate for absolute humidy:
         // rho_v = 216.7*(RH/100.0*6.112*exp(17.62*T/(243.12+T))/(273.15+T));
 
         // Calculate the constants into one number
-        // 216.7 * 6.112 / 100,000 (100*1000)
-        let prefix_constants = FP::from_bits(0x364); // 0.013244704
+        // 216.7 * 6.112 / 10,000 (10*1000)
+        let prefix_constants = FP::from_bits(0x21e8); // 0.13244704
 
         let k = FP::from_bits(0x1112666); // 273.15
         let m = FP::from_bits(0x119eb8); // 17.62
@@ -641,5 +643,30 @@ mod tests {
         let (tvoc, raw) = sensor.measure_tvoc_and_raw().unwrap();
         assert_eq!(tvoc, 0xbeef);
         assert_eq!(raw, 0x1234);
+    }
+
+    #[test]
+    fn absolute_humidity() {
+        let humidity = vec![
+            // temp, rh hum, absolute hum
+            (10_000, 25_000, 2359),
+            (10_000, 50_000, 4717),
+            (25_000, 25_000, 5782),
+            (25_000, 50_000, 11565),
+            (25_000, 75_000, 17348),
+        ];
+
+        for (i, (t, rh, abs_hum)) in humidity.iter().enumerate() {
+            let calc_abs_hum = Sgpc3::<I2cMock, DelayMock>::calculate_absolute_humidity(*rh,*t) as i32;
+            let delta = if calc_abs_hum > *abs_hum {
+                calc_abs_hum - abs_hum
+            }
+            else {
+                abs_hum - calc_abs_hum
+            };
+
+            assert!(delta < 200, "Calculated value = {}, Reference value = {} in index {}", calc_abs_hum, abs_hum, i);
+        }
+
     }
 }
