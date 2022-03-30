@@ -17,7 +17,14 @@ Datasheet: https://www.sensirion.com/file/datasheet_sgpc3
 ## Development status
 The sensor is feature complete and the future development evolves:
 - Moving into using Embedded-hal 1.x
+- Fixed-crate 2.x migration
+- Rust compiler 2021 changes
 
+The package is 1.0.0 now. Major number is changed when non-backwards compatible changes are made.
+The first minor number 1.x.0 is changed when new backwards compatible feature is added.
+The second minor number 1.0.x is changed when fix without any feature changes have been made.
+
+It is generally recommendated to set only the major number to get the future bug-fixes.
 
 ## License
 

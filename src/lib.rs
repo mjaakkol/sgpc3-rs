@@ -410,13 +410,12 @@ where
         let m = FP::from_bits(0x119eb8); // 17.62
         let t_n = FP::from_bits(0xf335c2); // 243.21
 
-        let temp_components = cordic::exp(m*t/(t_n + t));
+        let temp_components = cordic::exp(m * t / (t_n + t));
 
         let abs_hum = prefix_constants * rh * temp_components / (k + t);
 
         (abs_hum * 1000).to_num::<u32>()
     }
-
 
     /// Sets the relative humidity for the best accuracy.
     ///
@@ -657,16 +656,21 @@ mod tests {
         ];
 
         for (i, (t, rh, abs_hum)) in humidity.iter().enumerate() {
-            let calc_abs_hum = Sgpc3::<I2cMock, DelayMock>::calculate_absolute_humidity(*rh,*t) as i32;
+            let calc_abs_hum =
+                Sgpc3::<I2cMock, DelayMock>::calculate_absolute_humidity(*rh, *t) as i32;
             let delta = if calc_abs_hum > *abs_hum {
                 calc_abs_hum - abs_hum
-            }
-            else {
+            } else {
                 abs_hum - calc_abs_hum
             };
 
-            assert!(delta < 200, "Calculated value = {}, Reference value = {} in index {}", calc_abs_hum, abs_hum, i);
+            assert!(
+                delta < 200,
+                "Calculated value = {}, Reference value = {} in index {}",
+                calc_abs_hum,
+                abs_hum,
+                i
+            );
         }
-
     }
 }
