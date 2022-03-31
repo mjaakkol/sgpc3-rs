@@ -212,6 +212,39 @@ pub struct FeatureSet {
     pub product_featureset: u8,
 }
 
+/// Calculated absolute humidity from relative humidity and temperature
+///
+/// Sensor is using mass of water vapor in given space as the means capture humidity
+/// and this can be calculated from relative humidity %.
+///
+/// Humidity (t_rh) and temperature (t_mc) are both expressed in kilounits (10C is 10000)
+/// Return value is in g/m^3 kilounits
+fn calculate_absolute_humidity(t_rh: i32, t_mc: i32) -> u32 {
+    type FP = fixed::types::I16F16;
+
+    // Rounding the last digit off as the sensors don't reach that level of accurary
+    // anyway
+    let t = FP::from_num(t_mc / 10) / 100; //    (t_mc as f32) / 1000_f32;
+    let rh = FP::from_num(t_rh / 10); // (rh as f32) / 1000_f32;
+
+    // Formulate for absolute humidy:
+    // rho_v = 216.7*(RH/100.0*6.112*exp(17.62*T/(243.12+T))/(273.15+T));
+
+    // Calculate the constants into one number
+    // 216.7 * 6.112 / 10,000 (10*1000)
+    let prefix_constants = FP::from_bits(0x21e8); // 0.13244704
+
+    let k = FP::from_bits(0x1112666); // 273.15
+    let m = FP::from_bits(0x119eb8); // 17.62
+    let t_n = FP::from_bits(0xf335c2); // 243.21
+
+    let temp_components = cordic::exp(m * t / (t_n + t));
+
+    let abs_hum = prefix_constants * rh * temp_components / (k + t);
+
+    (abs_hum * 1000).to_num::<u32>()
+}
+
 #[derive(Debug, Default)]
 pub struct Sgpc3<I2C, D> {
     i2c: I2C,
@@ -391,39 +424,13 @@ where
         Ok(self)
     }
 
-    fn calculate_absolute_humidity(t_rh: i32, t_mc: i32) -> u32 {
-        type FP = fixed::types::I16F16;
-
-        // Rounding the last digit off as the sensors don't reach that level of accurary
-        // anyway
-        let t = FP::from_num(t_mc / 10) / 100; //    (t_mc as f32) / 1000_f32;
-        let rh = FP::from_num(t_rh / 10); // (rh as f32) / 1000_f32;
-
-        // Formulate for absolute humidy:
-        // rho_v = 216.7*(RH/100.0*6.112*exp(17.62*T/(243.12+T))/(273.15+T));
-
-        // Calculate the constants into one number
-        // 216.7 * 6.112 / 10,000 (10*1000)
-        let prefix_constants = FP::from_bits(0x21e8); // 0.13244704
-
-        let k = FP::from_bits(0x1112666); // 273.15
-        let m = FP::from_bits(0x119eb8); // 17.62
-        let t_n = FP::from_bits(0xf335c2); // 243.21
-
-        let temp_components = cordic::exp(m * t / (t_n + t));
-
-        let abs_hum = prefix_constants * rh * temp_components / (k + t);
-
-        (abs_hum * 1000).to_num::<u32>()
-    }
-
     /// Sets the relative humidity for the best accuracy.
     ///
     /// The arguments are supplied as milli-units. Eg. 20% relative humidity is supplied as 20000
     /// and temperature t_mc as Celsius. 10C is 10000.
     #[inline]
     pub fn set_relative_humidity(&mut self, rh: i32, t_mc: i32) -> Result<&mut Self, Error<E>> {
-        let abs_hum = Self::calculate_absolute_humidity(rh, t_mc);
+        let abs_hum = calculate_absolute_humidity(rh, t_mc);
 
         self.set_absolute_humidity(abs_hum as u32)
     }
@@ -656,8 +663,7 @@ mod tests {
         ];
 
         for (i, (t, rh, abs_hum)) in humidity.iter().enumerate() {
-            let calc_abs_hum =
-                Sgpc3::<I2cMock, DelayMock>::calculate_absolute_humidity(*rh, *t) as i32;
+            let calc_abs_hum = calculate_absolute_humidity(*rh, *t) as i32;
             let delta = if calc_abs_hum > *abs_hum {
                 calc_abs_hum - abs_hum
             } else {
