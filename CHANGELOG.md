@@ -45,6 +45,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 Initial release to crates.io. The crate moves into 0.1.x versioning after embedded-hal change.
 
-[1.0.0]: https://github.com/mjaakkol/sgpc3-rs/compare/v0.0.3...v1.0.0
+[1.0.0]: https://github.com/mjaakkol/sgpc3-rs/compare/v0.0.2...v1.0.0
 
 [i5]: https://github.com/mjaakkol/sgpc3-rs/pull/5
